@@ -5,13 +5,40 @@ use fastnbt::to_bytes;
 use std::fs::File;
 use std::collections::HashMap;
 
+fn get_section_by_height(sections: &mut Vec<Value>, height: i32) -> &mut HashMap<String, Value> {
+    for section_value in sections {
+        let section: &mut HashMap<String, Value> = match section_value {
+            Value::Compound(compound) => compound,
+            _ => panic!("Failed to get section")
+        };
+
+        let section_y: i32 = match section["Y"] {
+            Value::Byte(num) => num.into(),
+            Value::Int(num) => num,
+            _ => panic!("Failed to get Y value")
+        };
+
+        if section_y == height {
+            return section;
+        }
+    }
+    panic!("Failed to get section with height");
+}
+
 fn main() {
-    let file: File = File::options().read(true).write(true).open("regions/vanilla.mca").unwrap();
+    let file: File = File::options().read(true).write(true).open("regions/upper.mca").unwrap();
 
     let mut region: Region<File> = Region::from_stream(file).unwrap();
     let data = region.read_chunk(0, 0).unwrap().unwrap();
 
     let mut chunk: HashMap<String, Value> = from_bytes(data.as_slice()).unwrap();
+
+    let lower_file: File = File::open("regions/lower.mca").unwrap();
+    let mut lower_region: Region<File> = Region::from_stream(lower_file).unwrap();
+
+    let lower_data = lower_region.read_chunk(0, 0).unwrap().unwrap();
+
+    let mut lower_chunk: HashMap<String, Value> = from_bytes(lower_data.as_slice()).unwrap();
 
     let sections: &mut Vec<Value> = match chunk.get_mut("sections").unwrap() {
         Value::List(list) => list,
@@ -19,6 +46,11 @@ fn main() {
     };
 
     println!("Num sections: {:?}", sections.len());
+
+    let lower_sections: &mut Vec<Value> = match lower_chunk.get_mut("sections").unwrap() {
+        Value::List(list) => list,
+        _ => panic!("Failed to get sections")
+    };
 
     for section_value in sections {
         let section: &mut HashMap<String, Value> = match section_value {
@@ -32,34 +64,39 @@ fn main() {
             _ => panic!("Failed to get Y value")
         };
 
-        if section_y != -4 {
-            continue;
-        }
+        println!("Section y: {:?}", section_y);
 
-        let block_states: &mut HashMap<String, Value> = match section.get_mut("block_states").unwrap() {
-            Value::Compound(compound) => compound,
-            _ => panic!("Failed to get block states")
-        };
-
-        let palette: &mut Vec<Value> = match block_states.get_mut("palette").unwrap() {
-            Value::List(list) => list,
-            _ => panic!("Failed to get palette")
-        };
-
-        for block_value in palette {
-            let block: &mut HashMap<String, Value> = match block_value {
+        if section_y < 0 {
+            let lower_section: &mut HashMap<String, Value> = get_section_by_height(lower_sections, section_y);
+            std::mem::swap(section, lower_section);
+        } else if section_y == 0 {
+            let block_states: &mut HashMap<String, Value> = match section.get_mut("block_states").unwrap() {
                 Value::Compound(compound) => compound,
-                _ => panic!("Failed to get block")
+                _ => panic!("Failed to get block states")
             };
-
-            let name: &mut String = match block.get_mut("Name").unwrap() {
-                Value::String(string) => string,
-                _ => panic!("Failed to get block name")
+    
+            let palette: &mut Vec<Value> = match block_states.get_mut("palette").unwrap() {
+                Value::List(list) => list,
+                _ => panic!("Failed to get palette")
             };
-
-            if name == "minecraft:bedrock" {
-                name.replace_range(.., "minecraft:dirt");
+    
+            for block_value in palette {
+                let block: &mut HashMap<String, Value> = match block_value {
+                    Value::Compound(compound) => compound,
+                    _ => panic!("Failed to get block")
+                };
+    
+                let name: &mut String = match block.get_mut("Name").unwrap() {
+                    Value::String(string) => string,
+                    _ => panic!("Failed to get block name")
+                };
+    
+                if name == "minecraft:bedrock" {
+                    name.replace_range(.., "minecraft:stone");
+                }
             }
+        } else {
+            continue;
         }
 
         println!("{:?}", section);
