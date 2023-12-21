@@ -25,19 +25,11 @@ fn get_section_by_height(sections: &mut Vec<Value>, height: i32) -> &mut HashMap
     panic!("Failed to get section with height");
 }
 
-fn main() {
-    let file: File = File::options().read(true).write(true).open("regions/upper.mca").unwrap();
-
-    let mut region: Region<File> = Region::from_stream(file).unwrap();
-    let data = region.read_chunk(0, 0).unwrap().unwrap();
-
+fn plop_chunk(upper_region: &mut Region<File>, lower_region: &mut Region<File>, x: usize, z: usize) {
+    let data = upper_region.read_chunk(x, z).unwrap().unwrap();
     let mut chunk: HashMap<String, Value> = from_bytes(data.as_slice()).unwrap();
 
-    let lower_file: File = File::open("regions/lower.mca").unwrap();
-    let mut lower_region: Region<File> = Region::from_stream(lower_file).unwrap();
-
-    let lower_data = lower_region.read_chunk(0, 0).unwrap().unwrap();
-
+    let lower_data = lower_region.read_chunk(x, z).unwrap().unwrap();
     let mut lower_chunk: HashMap<String, Value> = from_bytes(lower_data.as_slice()).unwrap();
 
     let sections: &mut Vec<Value> = match chunk.get_mut("sections").unwrap() {
@@ -45,7 +37,7 @@ fn main() {
         _ => panic!("Failed to get sections")
     };
 
-    println!("Num sections: {:?}", sections.len());
+    // println!("Num sections: {:?}", sections.len());
 
     let lower_sections: &mut Vec<Value> = match lower_chunk.get_mut("sections").unwrap() {
         Value::List(list) => list,
@@ -64,7 +56,7 @@ fn main() {
             _ => panic!("Failed to get Y value")
         };
 
-        println!("Section y: {:?}", section_y);
+        // println!("Section y: {:?}", section_y);
 
         if section_y < 0 {
             let lower_section: &mut HashMap<String, Value> = get_section_by_height(lower_sections, section_y);
@@ -99,13 +91,32 @@ fn main() {
             continue;
         }
 
-        println!("{:?}", section);
+        // println!("{:?}", section);
     }
 
     let bytes = to_bytes(&chunk).unwrap();
 
-    match region.write_chunk(0, 0, &bytes) {
+    match upper_region.write_chunk(x, z, &bytes) {
         Ok(_) => {}
         Err(error) => panic!("Error writing chunk: {:?}", error)
     };
+}
+
+fn plop_region(upper: String, lower: String) {
+    let file: File = File::options().read(true).write(true).open(upper).unwrap();
+
+    let mut region: Region<File> = Region::from_stream(file).unwrap();
+
+    let lower_file: File = File::open(lower).unwrap();
+    let mut lower_region: Region<File> = Region::from_stream(lower_file).unwrap();
+
+    for z in 0..32 {
+        for x in 0..32 {
+            plop_chunk(&mut region, &mut lower_region, x, z);
+        }
+    }
+}
+
+fn main() {
+    plop_region("regions/upper.mca".into(), "regions/lower.mca".into());
 }
