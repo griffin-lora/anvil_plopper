@@ -1,5 +1,7 @@
-use fastanvil::{CurrentJavaChunk, Region};
+use fastanvil::{CurrentJavaChunk, Region, Chunk, Block};
+use fastnbt::{Value};
 use fastnbt::from_bytes;
+use fastnbt::to_bytes;
 
 //
 // This loads a region file, extracts a chunk from it, and uses serde to
@@ -7,13 +9,14 @@ use fastnbt::from_bytes;
 //
 
 fn main() {
-    let file = std::fs::File::open("regions/vanilla.mca").unwrap();
+    let mut file: std::fs::File = std::fs::File::open("regions/vanilla.mca").unwrap();
 
-    let mut region = Region::from_stream(file).unwrap();
+    let mut region: Region<std::fs::File> = Region::from_stream(file).unwrap();
     let data = region.read_chunk(0, 0).unwrap().unwrap();
 
-    let chunk: CurrentJavaChunk = from_bytes(data.as_slice()).unwrap();
-    chunk.block();
+    let chunk: Value = from_bytes(data.as_slice()).unwrap();
 
-    println!("{:?}", chunk);
+    let bytes = to_bytes(&chunk).unwrap();
+
+    region.write_chunk(0, 0, &bytes);
 }
