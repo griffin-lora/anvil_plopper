@@ -3,10 +3,10 @@ mod plopper;
 use plopper::plop_region;
 
 fn main() {
-    let x_lower_bound = -1;
-    let x_upper_bound = 1;
-    let z_lower_bound = -1;
-    let z_upper_bound = 1;
+    let x_lower_bound = -25;
+    let x_upper_bound = 21;
+    let z_lower_bound = -20;
+    let z_upper_bound = 22;
 
     for z in z_lower_bound..(z_upper_bound + 1) {
         for x in x_lower_bound..(x_upper_bound + 1) {

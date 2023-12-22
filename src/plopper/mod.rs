@@ -23,7 +23,14 @@ fn get_section_by_height(sections: &mut Vec<fastnbt::Value>, height: i32) -> &mu
 
 fn plop_chunk(upper_region: &mut fastanvil::Region<fs::File>, lower_region: &mut fastanvil::Region<fs::File>, x: usize, z: usize) {    
     // Read the raw, serialized chunk data for the lower chunk
-    let lower_data = lower_region.read_chunk(x, z).unwrap().unwrap();
+    let lower_data = match lower_region.read_chunk(x, z).unwrap() {
+        Some(v) => v,
+        _ => {
+            println!("Skipped chunk {}, {}", x, z);
+            return;
+        }
+    };
+
     // Parse the lower chunk nbt into a HashMap
     let mut lower_chunk: HashMap<String, fastnbt::Value> = fastnbt::from_bytes(lower_data.as_slice()).unwrap();
     
@@ -111,7 +118,13 @@ fn plop_chunk(upper_region: &mut fastanvil::Region<fs::File>, lower_region: &mut
 }
 
 pub fn plop_region(upper: &str, lower: &str) {
-    let file = fs::File::options().read(true).write(true).open(upper).unwrap();
+    let file = match fs::File::options().read(true).write(true).open(upper) {
+        Ok(v) => v,
+        _ => {
+            println!("Skipped region file {}", upper);
+            return;
+        }
+    };
 
     let mut region = fastanvil::Region::from_stream(file).unwrap();
 
